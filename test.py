@@ -3,18 +3,19 @@ import galactic_equatorial as ge
 
 print(
 '''
-Vela pulsar test 
-Corrections to the observed Vela proper motion:
-    
-In galactic coordinates
-Observed proper motion: -53.6, -21.9
-Correction for the solar motion: 6.7, 4.9
-Correction for the galactic rotation: 5.35, 0
-    
-Converted back to RA and Dec: -38.5, 23.1
-    
-output:
-''')
+Test using Vela pulsar proper motion
+(Dodson, R., Legge, D., Reynolds, J. E., et al. 2003, ApJ, 596, 1137):
+'''
+
+# In galactic coordinates
+# Observed proper motion: -53.6, -21.9
+# Correction for the solar motion: 6.7, 4.9
+# Correction for the galactic rotation: 5.35, 0
+#
+# Converted back to RA and Dec: -38.5, 23.1
+#
+# 
+# ''')
 
 # Dehnen & Binney 1998:
 
@@ -39,22 +40,31 @@ VR = 220 # km/s
 # VR = 230 # km/s
 
 pars = [U, V, W, R0, VR0, VR]
-            
-l = 263.55196463 # degrees
-b = -2.7872552 # degrees 
-dist = 0.293 # kpc
+
+def hms2deg(h, m, s):
+    return (h + m / 60 + s / 3600) * 360 / 24
+
+def dms2deg(d, m, s):
+    return d + np.sign(d) * (m / 60 + s / 3600)
     
-corr = ge.DGRandLSRcorrections(l, b, dist, *pars).reshape(2,2)
-corr = [-53.6, -21.9] - np.array(sum(corr)) 
-print(ge.muLB2RaDec(l, b, *corr))
+    
+ra = [8, 35, 20.55] 
+dec = [-45, 10, 34.8]  
 
-print(ge.DGRandLSRcorrections.__doc__, ge.muLB2RaDec.__doc__)
+ra, dec = hms2deg(*ra), dms2deg(*dec)
 
+print("radec: ", ra, dec) 
 
+l, b = ge.RaDec2LB(ra, dec)
+print("lb: ", l, b)
 
+corr = ge.RaDec_corr(ra, dec, 0.287, U, V, W, R0, VR0, VR)
 
+muradec = [-49.68, 29.9]
 
-
+print("corrections, radec: ", corr)
+print("proper motion, radec:", muradec)
+print("corrected proper motion, radec: ", muradec - sum(corr))
 
 
 

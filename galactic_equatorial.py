@@ -1,5 +1,4 @@
 import numpy as np
-import inspect
 
 ra0 = 192.85948 # NGP
 dec0 = 27.12825 # NGP
@@ -48,7 +47,10 @@ def LB2RaDec(l, b):
     
 def muRaDec2LB(ra, dec, murastar, mudec):
     
-    'transfroms velocities from equatorial (mu_ra_*, mu_dec) to galactic (mu_l_*, mu_b)'
+    '''
+    transfroms velocities from equatorial (mu_ra_star, mu_dec) to galactic (mu_l_star, mu_b)
+    mulstar and murastar imply multiplication by Cos[b] and Cos[Dec], respectively 
+    '''
         
     [ra, dec] = np.radians([ra, dec])
         
@@ -78,10 +80,16 @@ def muLB2RaDec(l, b, mulstar, mub):
     return rot_mat.dot([mulstar, mub])    
     
     
-def DGRandLSRcorrections(l, b, dist, U, V, W, R0, VR0, VR):
+def LB_corr(l, b, dist, U, V, W, R0, VR0, VR):
     
     '''
-    output numpy[mulstarDGR, mubDGR, mulstarLSR, mubLSR]
+    Calculates corrections to proper motion (in Galactic coordinates)
+    for differential Galactic rotation (DGR)
+    and Sun's peculiar motion (LSR)
+    See e.g., Verbunt F., Igoshev, A., & Cator E., 2017, A&A, 608, 57.
+    
+    output numpy[[mu_l_star_DGR, mu_b_DGR], [mu_l_star_LSR, mu_b_LSR]]  
+    mulstar implies multiplication by Cos[b]  
     '''
     
     [l, b] = np.radians([l, b])
@@ -93,57 +101,32 @@ def DGRandLSRcorrections(l, b, dist, U, V, W, R0, VR0, VR):
     mulstarLSR = U * np.sin(l) - V * np.cos(l)
     mubLSR = U * np.cos(l) * np.sin(b) + V * np.sin(l) * np.sin(b) - W * np.cos(b)
     
-    return np.array([mulstarDGR, mubDGR, mulstarLSR, mubLSR]) / (4.74 * dist)
+    return np.array([[mulstarDGR, mubDGR], [mulstarLSR, mubLSR]]) / (4.74 * dist)
     
+    
+def RaDec_corr(ra, dec, dist, U, V, W, R0, VR0, VR): 
+    
+    '''
+    Calculates corrections to proper motion (in equatorial coordinates)
+    for differential Galactic rotation (DGR)
+    and Sun's peculiar motion (LSR)
+    See e.g., Verbunt F., Igoshev, A., & Cator E., 2017, A&A, 608, 57.
+    
+    output numpy[[mu_ra_star_DGR, mu_dec_DGR], [mu_ra_star_LSR, mu_dec_LSR]]  
+    mu_ra_star implies multiplication by Cos[b]  
+    '''
       
-# TEST
-if __name__ == "__main__":
+    l, b = RaDec2LB(ra, dec)
+    lbcorr = LB_corr(l, b, dist, U, V, W, R0, VR0, VR);
     
-    #import sys
-    #print(muRaDec2LB(float(sys.argv[1]), float(sys.argv[2]), 10, 10))
+    return np.array([muLB2RaDec(l, b, *lbcorr[0]), muLB2RaDec(l, b, *lbcorr[1])])
     
-    print(inspect.cleandoc('''
-    Vela pulsar test
-    Corrections to the observed Vela proper motion:
-
-    In galactic coordinates
-    Observed proper motion: -53.6, -21.9
-    Correction for the solar motion: 6.7, 4.9
-    Correction for the galactic rotation: 5.35, 0
-
-    Converted back to RA and Dec: -38.5, 23.1
-
-    output:
-    '''))
-
-    # Dehnen & Binney 1998:
-
-    U = 10.0 # km/s
-    V = 5.25 # km/s
-    W = 7.17 # km/s
-
-    # Fich 1989:
-
-    R0 = 8.5 # kpc
-    VR0 = 220 # km/s
-    VR = 220 # km/s
     
-    # # Schonrich,Binney& Dehnen (2010):
-    # U = 11.1 # km/s
-    # V = 12.24 # km/s
-    # W = 7.25 # km/s
-    #
-    # # Reid 1993; Carrillo et al. 2018
-    # R0 = 8.0 # kpc
-    # VR0 = 230 # km/s
-    # VR = 230 # km/s
+def hms2deg(h, m, s):
+    'transforms hours, min, sec into degrees'
+    return (h + m / 60 + s / 3600) * 360 / 24
     
-    pars = [U, V, W, R0, VR0, VR]
 
-    l = 263.55196463 # degrees
-    b = -2.7872552 # degrees
-    dist = 0.293 # kpc
-
-    corr = DGRandLSRcorrections(l, b, dist, *pars).reshape(2,2)
-    corr = [-53.6, -21.9] - np.array(sum(corr))
-    print(muLB2RaDec(l, b, *corr))
+def dms2deg(d, m, s):
+    'transforms degrees, min, sec into degrees'
+    return d + np.sign(d) * (m / 60 + s / 3600)    
